@@ -21,7 +21,7 @@ def load_feature_subtensor(nfeats, input_nodes, is_pad, device):
             if k is 'user':
                 batch_inputs[k] = F.pad(v[input_nodes[k]], (0, 4))
             else:
-                batch_inputs[k] = F.pad(v[input_nodes[k]], (24, 0))
+                batch_inputs[k] = F.pad(v[input_nodes[k]], (84, 0))
             batch_inputs[k] = batch_inputs[k].to(device)
     else:
         batch_inputs = {k: v[input_nodes[k]].to(device) for k, v in nfeats.items()}

@@ -19,6 +19,7 @@ class WeightedSAGEConv(nn.Module):
             h_total = torch.cat([h, h_N], dim=1)
             return self.linear(h_total)
 
+
 class RGCNLayer(nn.Module):
     """
     R-GCN layer using basis decomposition
@@ -91,6 +92,7 @@ class RGCNLayer(nn.Module):
             return {'h': h}
 
         g.update_all(message_func, fn.sum(msg='msg', out='h'), apply_func)
+
 
 class HeteroRGCNLayer(nn.Module):
     """

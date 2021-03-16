@@ -3,13 +3,11 @@ import torch.nn.functional as F
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.parallel import DistributedDataParallel
 from data_utils import *
-# from eval_utils import *
 from model import binaryRGCN
 import dgl
 import numpy as np
-import math
+import copy
 from sklearn.metrics import roc_auc_score
 
 
@@ -50,7 +48,7 @@ def train(args, device, data):
     avg = 0
     iter_tput = []
     best_val_auc = 0
-    best_model_state_dict = model.state_dict()
+    best_model_state_dict = copy.deepcopy(model.state_dict())
     for epoch in range(args.num_epochs):
         tic = time.time()
         # train prcess: loop over the dataloader to sample the computation dependency graph as a list of blocks.
@@ -109,23 +107,18 @@ def train(args, device, data):
             #     np.savetxt(args.save_pred + '%02d' % epoch, pred.argmax(1).cpu().numpy(), '%d')
             if val_auc > best_val_auc:
                 best_val_auc = val_auc
-                best_model_state_dict = model.state_dict()
+                best_model_state_dict = copy.deepcopy(model.state_dict())
             print('Best val auc {:.4f}'.format(best_val_auc))
-            # print(model.state_dict())
     print('Avg epoch time: {}'.format(avg / (epoch - 4)))
 
+    torch.save(best_model_state_dict, './dataset/model.pkl')
     # test process: retrieve best validation model for test evaluation
-    best_model = binaryRGCN(input_dim, args.hidden_dim, args.num_layers, F.relu, args.dropout, g.etypes,
-                            args.label_entity)
-    best_model.load_state_dict(best_model_state_dict)
-    best_model.to(device)
-    best_model.eval()
+    model.load_state_dict(best_model_state_dict)
+    model.eval()
     with torch.no_grad():
-        pred = best_model.inference(g, entity_features, device, args.batch_size, args.num_workers, args.is_pad)
-    test_auc = roc_auc_score(labels[test_nid].squeeze().cpu().detach().numpy(),
-                             pred[test_nid].squeeze().detach().numpy())
-    # np.set_printoptions(suppress=True, formatter={'float_kind': '{:0.4f}'.format})
-    # print(labels[test_nid].squeeze().cpu().detach().numpy())
-    # print(pred[test_nid].squeeze().detach().numpy())
+        pred = model.inference(g, entity_features, device, args.batch_size, args.num_workers, args.is_pad)
+    pred_np = pred.squeeze().detach().numpy()
+    np.savez_compressed('./dataset/7d_pred', pred=pred_np)
+    test_auc = roc_auc_score(labels[test_nid].squeeze().cpu().detach().numpy(), pred_np[test_nid])
     print('Test set auc {:.4f}'.format(test_auc))
     return test_auc
