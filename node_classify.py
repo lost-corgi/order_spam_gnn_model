@@ -14,6 +14,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Train user-device graph")
     argparser.add_argument('--gpu', type=int, default=-1,
                            help="GPU device ID. Use -1 for CPU training")
+    argparser.add_argument('--sample-ratio', type=int, default=3)
     argparser.add_argument('--num-epochs', type=int, default=300)
     # argparser.add_argument('--input-dim', type=int, default=10)
     argparser.add_argument('--hidden-dim', type=int, default=16)
