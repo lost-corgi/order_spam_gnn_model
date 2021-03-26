@@ -5,10 +5,23 @@ import dgl
 from hgraph_builder import *
 import s3fs
 import pyarrow.parquet as pq
+import pandas as pd
+import pyarrow as pa
+import os
 from dateutil.parser import parse as dt_parse
 from train import train
 
 # dsnodash = dt_parse(args.date_key).strftime('%Y%m%d')
+
+def write2parquet(path, data):
+    table = pa.Table.from_pandas(data)
+    pq.write_table(table, path)
+
+def upload2s3(target_path, data):
+    rm_command = 'aws s3 rm --recursive {}'.format(target_path)
+    s3_command = 'aws s3 cp --recursive {} {}'.format(data, target_path)
+    os.system(rm_command)
+    os.system(s3_command)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Train user-device graph")
@@ -36,10 +49,10 @@ if __name__ == '__main__':
     argparser.add_argument('--device-table', type=str, default='dm_as_gnn_user_place_order_device_feature_7d_inc')
     argparser.add_argument('--relation-table', type=str, default='dm_as_gnn_user_place_order_device_relation_7d_inc')
     argparser.add_argument('--label-table', type=str, default='dm_as_gnn_user_place_order_label_7d')
+    argparser.add_argument('--out-table', type=str, default='dm_as_gnn_user_place_order_pred_7d_inc')
     argparser.add_argument('--label-entity', type=str, default='user')
     argparser.add_argument('--dsnodash', type=str, default='20210309')
     argparser.add_argument('--debug', action='store_true')
-    # parser.add_argument('output_path', type=str)
     args = argparser.parse_args()
 
     if args.gpu >= 0:
@@ -109,4 +122,11 @@ if __name__ == '__main__':
     # prepare for training
     data = train_idx, val_idx, test_idx, num_user_feature + num_device_feature, num_user_feature, num_device_feature, \
            labels, n_classes, entity_features, g
-    train(args, device, data)
+
+    pred_np = train(args, device, data)
+    out_df = pd.DataFrame(np.expand_dims(pred_np, 1))
+
+    output_path = 'dataset/'
+    target_path = 's3://xhs.alpha/reddm/%s/dtm=%s' % (args.dsnodash, args.out_table)
+    write2parquet(output_path + '000000_0', out_df)
+    upload2s3(target_path, output_path)

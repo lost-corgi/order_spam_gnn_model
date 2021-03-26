@@ -118,7 +118,8 @@ def train(args, device, data):
     with torch.no_grad():
         pred = model.inference(g, entity_features, device, args.batch_size, args.num_workers, args.is_pad)
     pred_np = pred.squeeze().detach().numpy()
-    np.savez_compressed('./dataset/7d_pred', pred=pred_np)
+    # np.savez_compressed('./dataset/7d_pred', pred=pred_np)
     test_auc = roc_auc_score(labels[test_nid].squeeze().cpu().detach().numpy(), pred_np[test_nid])
     print('Test set auc {:.4f}'.format(test_auc))
-    return test_auc
+
+    return pred_np
